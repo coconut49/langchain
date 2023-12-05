@@ -3,10 +3,10 @@ import os
 from typing import List
 
 import pytest
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
 from langchain.chat_models import ChatAnthropic
 from langchain.chat_models.anthropic import convert_messages_to_prompt_anthropic
-from langchain.schema import AIMessage, BaseMessage, HumanMessage
 
 os.environ["ANTHROPIC_API_KEY"] = "foo"
 
@@ -50,11 +50,24 @@ def test_anthropic_initialization() -> None:
     ChatAnthropic(model="test", anthropic_api_key="test")
 
 
-def test_formatting() -> None:
-    messages: List[BaseMessage] = [HumanMessage(content="Hello")]
+@pytest.mark.parametrize(
+    ("messages", "expected"),
+    [
+        ([HumanMessage(content="Hello")], "\n\nHuman: Hello\n\nAssistant:"),
+        (
+            [HumanMessage(content="Hello"), AIMessage(content="Answer:")],
+            "\n\nHuman: Hello\n\nAssistant: Answer:",
+        ),
+        (
+            [
+                SystemMessage(content="You're an assistant"),
+                HumanMessage(content="Hello"),
+                AIMessage(content="Answer:"),
+            ],
+            "You're an assistant\n\nHuman: Hello\n\nAssistant: Answer:",
+        ),
+    ],
+)
+def test_formatting(messages: List[BaseMessage], expected: str) -> None:
     result = convert_messages_to_prompt_anthropic(messages)
-    assert result == "\n\nHuman: Hello\n\nAssistant:"
-
-    messages = [HumanMessage(content="Hello"), AIMessage(content="Answer:")]
-    result = convert_messages_to_prompt_anthropic(messages)
-    assert result == "\n\nHuman: Hello\n\nAssistant: Answer:"
+    assert result == expected

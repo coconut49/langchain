@@ -3,11 +3,12 @@
 import json
 from typing import Any, Dict, Optional
 
+from langchain_core.language_models import BaseLanguageModel
+from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_core.vectorstores import VectorStore
+
 from langchain.callbacks.manager import CallbackManagerForToolRun
 from langchain.llms.openai import OpenAI
-from langchain.pydantic_v1 import BaseModel, Field
-from langchain.schema.language_model import BaseLanguageModel
-from langchain.schema.vectorstore import VectorStore
 from langchain.tools.base import BaseTool
 
 
@@ -18,9 +19,7 @@ class BaseVectorStoreTool(BaseModel):
     llm: BaseLanguageModel = Field(default_factory=lambda: OpenAI(temperature=0))
 
     class Config(BaseTool.Config):
-        """Configuration for this pydantic object."""
-
-        arbitrary_types_allowed = True
+        pass
 
 
 def _create_description_from_template(values: Dict[str, Any]) -> Dict[str, Any]:

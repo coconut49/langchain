@@ -1,9 +1,8 @@
 from typing import Any, Dict, List, Optional
 
 import requests
-
-from langchain.pydantic_v1 import BaseModel, Extra, Field
-from langchain.schema.embeddings import Embeddings
+from langchain_core.embeddings import Embeddings
+from langchain_core.pydantic_v1 import BaseModel, Extra, Field
 
 DEFAULT_MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
 DEFAULT_INSTRUCT_MODEL = "hkunlp/instructor-large"
@@ -45,9 +44,9 @@ class HuggingFaceEmbeddings(BaseModel, Embeddings):
     """Path to store models. 
     Can be also set by SENTENCE_TRANSFORMERS_HOME environment variable."""
     model_kwargs: Dict[str, Any] = Field(default_factory=dict)
-    """Key word arguments to pass to the model."""
+    """Keyword arguments to pass to the model."""
     encode_kwargs: Dict[str, Any] = Field(default_factory=dict)
-    """Key word arguments to pass when calling the `encode` method of the model."""
+    """Keyword arguments to pass when calling the `encode` method of the model."""
     multi_process: bool = False
     """Run encode() on multiple GPUs."""
 
@@ -133,9 +132,9 @@ class HuggingFaceInstructEmbeddings(BaseModel, Embeddings):
     """Path to store models. 
     Can be also set by SENTENCE_TRANSFORMERS_HOME environment variable."""
     model_kwargs: Dict[str, Any] = Field(default_factory=dict)
-    """Key word arguments to pass to the model."""
+    """Keyword arguments to pass to the model."""
     encode_kwargs: Dict[str, Any] = Field(default_factory=dict)
-    """Key word arguments to pass when calling the `encode` method of the model."""
+    """Keyword arguments to pass when calling the `encode` method of the model."""
     embed_instruction: str = DEFAULT_EMBED_INSTRUCTION
     """Instruction to use for embedding documents."""
     query_instruction: str = DEFAULT_QUERY_INSTRUCTION
@@ -212,9 +211,9 @@ class HuggingFaceBgeEmbeddings(BaseModel, Embeddings):
     """Path to store models.
     Can be also set by SENTENCE_TRANSFORMERS_HOME environment variable."""
     model_kwargs: Dict[str, Any] = Field(default_factory=dict)
-    """Key word arguments to pass to the model."""
+    """Keyword arguments to pass to the model."""
     encode_kwargs: Dict[str, Any] = Field(default_factory=dict)
-    """Key word arguments to pass when calling the `encode` method of the model."""
+    """Keyword arguments to pass when calling the `encode` method of the model."""
     query_instruction: str = DEFAULT_QUERY_BGE_INSTRUCTION_EN
     """Instruction to use for embedding query."""
 
@@ -280,9 +279,15 @@ class HuggingFaceInferenceAPIEmbeddings(BaseModel, Embeddings):
     """Your API key for the HuggingFace Inference API."""
     model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     """The name of the model to use for text embeddings."""
+    api_url: Optional[str] = None
+    """Custom inference endpoint url. None for using default public url."""
 
     @property
     def _api_url(self) -> str:
+        return self.api_url or self._default_api_url
+
+    @property
+    def _default_api_url(self) -> str:
         return (
             "https://api-inference.huggingface.co"
             "/pipeline"

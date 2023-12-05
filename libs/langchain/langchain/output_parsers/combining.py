@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from langchain.pydantic_v1 import root_validator
-from langchain.schema import BaseOutputParser
+from langchain_core.output_parsers import BaseOutputParser
+from langchain_core.pydantic_v1 import root_validator
 
 
 class CombiningOutputParser(BaseOutputParser):
@@ -25,7 +25,7 @@ class CombiningOutputParser(BaseOutputParser):
             if parser._type == "combining":
                 raise ValueError("Cannot nest combining parsers")
             if parser._type == "list":
-                raise ValueError("Cannot comine list parsers")
+                raise ValueError("Cannot combine list parsers")
         return values
 
     @property

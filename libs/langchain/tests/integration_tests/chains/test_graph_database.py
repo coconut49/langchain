@@ -14,7 +14,7 @@ from langchain.llms.openai import OpenAI
 
 def test_connect_neo4j() -> None:
     """Test that Neo4j database is correctly instantiated and connected."""
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -36,9 +36,22 @@ def test_connect_neo4j() -> None:
     assert output == expected_output
 
 
+def test_connect_neo4j_env() -> None:
+    """Test that Neo4j database environment variables."""
+    graph = Neo4jGraph()
+
+    output = graph.query(
+        """
+    RETURN "test" AS output
+    """
+    )
+    expected_output = [{"output": "test"}]
+    assert output == expected_output
+
+
 def test_cypher_generating_run() -> None:
     """Test that Cypher statement is correctly generated and executed."""
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -68,7 +81,7 @@ def test_cypher_generating_run() -> None:
 
 def test_cypher_top_k() -> None:
     """Test top_k parameter correctly limits the number of results in the context."""
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -102,7 +115,7 @@ def test_cypher_top_k() -> None:
 
 def test_cypher_intermediate_steps() -> None:
     """Test the returning of the intermediate steps."""
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -133,11 +146,23 @@ def test_cypher_intermediate_steps() -> None:
     assert output["result"] == expected_output
 
     query = output["intermediate_steps"][0]["query"]
-    expected_query = (
-        "\n\nMATCH (a:Actor)-[:ACTED_IN]->"
-        "(m:Movie {title: 'Pulp Fiction'}) RETURN a.name"
-    )
-    assert query == expected_query
+    # LLM can return variations of the same query
+    expected_queries = [
+        (
+            "\n\nMATCH (a:Actor)-[:ACTED_IN]->"
+            "(m:Movie {title: 'Pulp Fiction'}) RETURN a.name"
+        ),
+        (
+            "\n\nMATCH (a:Actor)-[:ACTED_IN]->"
+            "(m:Movie {title: 'Pulp Fiction'}) RETURN a.name;"
+        ),
+        (
+            "\n\nMATCH (a:Actor)-[:ACTED_IN]->"
+            "(m:Movie) WHERE m.title = 'Pulp Fiction' RETURN a.name"
+        ),
+    ]
+
+    assert query in expected_queries
 
     context = output["intermediate_steps"][1]["context"]
     expected_context = [{"a.name": "Bruce Willis"}]
@@ -146,7 +171,7 @@ def test_cypher_intermediate_steps() -> None:
 
 def test_cypher_return_direct() -> None:
     """Test that chain returns direct results."""
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -178,7 +203,7 @@ def test_cypher_return_direct() -> None:
 
 def test_cypher_return_correct_schema() -> None:
     """Test that chain returns direct results."""
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -243,7 +268,7 @@ def test_cypher_save_load() -> None:
     """Test saving and loading."""
 
     FILE_PATH = "cypher.yaml"
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -267,7 +292,7 @@ def test_cypher_save_load() -> None:
 
 def test_exclude_types() -> None:
     """Test exclude types from schema."""
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -294,20 +319,18 @@ def test_exclude_types() -> None:
         OpenAI(temperature=0), graph=graph, exclude_types=["Person", "DIRECTED"]
     )
     expected_schema = (
-        "Node properties are the following: \n"
-        " {'Movie': [{'property': 'title', 'type': 'STRING'}], "
-        "'Actor': [{'property': 'name', 'type': 'STRING'}]}\n"
-        "Relationships properties are the following: \n"
-        " {}\nRelationships are: \n"
-        "['(:Actor)-[:ACTED_IN]->(:Movie)']"
+        "Node properties are the following:\n"
+        "Movie {title: STRING},Actor {name: STRING}\n"
+        "Relationship properties are the following:\n\n"
+        "The relationships are the following:\n"
+        "(:Actor)-[:ACTED_IN]->(:Movie)"
     )
-
     assert chain.graph_schema == expected_schema
 
 
 def test_include_types() -> None:
     """Test include types from schema."""
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -334,12 +357,11 @@ def test_include_types() -> None:
         OpenAI(temperature=0), graph=graph, include_types=["Movie", "Actor", "ACTED_IN"]
     )
     expected_schema = (
-        "Node properties are the following: \n"
-        " {'Movie': [{'property': 'title', 'type': 'STRING'}], "
-        "'Actor': [{'property': 'name', 'type': 'STRING'}]}\n"
-        "Relationships properties are the following: \n"
-        " {}\nRelationships are: \n"
-        "['(:Actor)-[:ACTED_IN]->(:Movie)']"
+        "Node properties are the following:\n"
+        "Movie {title: STRING},Actor {name: STRING}\n"
+        "Relationship properties are the following:\n\n"
+        "The relationships are the following:\n"
+        "(:Actor)-[:ACTED_IN]->(:Movie)"
     )
 
     assert chain.graph_schema == expected_schema
@@ -347,7 +369,7 @@ def test_include_types() -> None:
 
 def test_include_types2() -> None:
     """Test include types from schema."""
-    url = os.environ.get("NEO4J_URL")
+    url = os.environ.get("NEO4J_URI")
     username = os.environ.get("NEO4J_USERNAME")
     password = os.environ.get("NEO4J_PASSWORD")
     assert url is not None
@@ -374,11 +396,9 @@ def test_include_types2() -> None:
         OpenAI(temperature=0), graph=graph, include_types=["Movie", "ACTED_IN"]
     )
     expected_schema = (
-        "Node properties are the following: \n"
-        " {'Movie': [{'property': 'title', 'type': 'STRING'}]}\n"
-        "Relationships properties are the following: \n"
-        " {}\nRelationships are: \n"
-        "[]"
+        "Node properties are the following:\n"
+        "Movie {title: STRING}\n"
+        "Relationship properties are the following:\n\n"
+        "The relationships are the following:\n"
     )
-
     assert chain.graph_schema == expected_schema

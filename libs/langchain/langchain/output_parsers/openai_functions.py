@@ -3,18 +3,15 @@ import json
 from typing import Any, Dict, List, Optional, Type, Union
 
 import jsonpatch
-
-from langchain.output_parsers.json import parse_partial_json
-from langchain.pydantic_v1 import BaseModel, root_validator
-from langchain.schema import (
-    ChatGeneration,
-    Generation,
-    OutputParserException,
-)
-from langchain.schema.output_parser import (
+from langchain_core.exceptions import OutputParserException
+from langchain_core.output_parsers import (
     BaseCumulativeTransformOutputParser,
     BaseGenerationOutputParser,
 )
+from langchain_core.outputs import ChatGeneration, Generation
+from langchain_core.pydantic_v1 import BaseModel, root_validator
+
+from langchain.output_parsers.json import parse_partial_json
 
 
 class OutputFunctionsParser(BaseGenerationOutputParser[Any]):
@@ -53,6 +50,10 @@ class JsonOutputFunctionsParser(BaseCumulativeTransformOutputParser[Any]):
 
     args_only: bool = True
     """Whether to only return the arguments to the function call."""
+
+    @property
+    def _type(self) -> str:
+        return "json_functions"
 
     def _diff(self, prev: Optional[Any], next: Any) -> Any:
         return jsonpatch.make_patch(prev, next).patch
@@ -126,8 +127,10 @@ class JsonKeyOutputFunctionsParser(JsonOutputFunctionsParser):
     """The name of the key to return."""
 
     def parse_result(self, result: List[Generation], *, partial: bool = False) -> Any:
-        res = super().parse_result(result)
-        return res[self.key_name]
+        res = super().parse_result(result, partial=partial)
+        if partial and res is None:
+            return None
+        return res.get(self.key_name) if partial else res[self.key_name]
 
 
 class PydanticOutputFunctionsParser(OutputFunctionsParser):
